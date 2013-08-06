@@ -5,6 +5,15 @@ Simple Python script that will query NASA's ECHO Rest API using some simple comm
 To keep it really simple the script only searches for MOD09GA products and it just prints the urls
 to std-out.
 
+Dependencies:
+-------------
+
+- Requests Module: http://docs.python-requests.org/
+- Python >= 2.7 (uses argparse)
+
+
+Simple Tutorial:
+----------------
 The script generates a python list internally, so if you want to use that list in another program you can
 but I mostly use it to pipe the output to a file.  Then I can take that file and use wget or curl.
 
@@ -26,8 +35,7 @@ Fetch all MOD09GA hdfs for tile h08v05 between (and including) Feb. 1, 2007 to D
     $> python mod09ga_urls.py h08v05 -s 20070201 -e 20091216 > h08v05-urls.txt
     $> wget -i h08v05-urls.txt
 
-More Info About ECHO
-====================
+### More Info About ECHO
 
 API Docs:  https://api.echo.nasa.gov/catalog-rest/catalog-docs/
 
