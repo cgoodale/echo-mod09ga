@@ -25,3 +25,9 @@ Fetch all MOD09GA hdfs for tile h08v05 between (and including) Feb. 1, 2007 to D
 
     $> python mod09ga_urls.py h08v05 -s 20070201 -e 20091216 > h08v05-urls.txt
     $> wget -i h08v05-urls.txt
+
+More Info About ECHO
+====================
+
+API Docs:  https://api.echo.nasa.gov/catalog-rest/catalog-docs/
+REST Catalog Search Guide: https://earthdata.nasa.gov/echo/controlled-documents/echo-partner-guides-documents#echo-rest-search-guide (download the PDF)
