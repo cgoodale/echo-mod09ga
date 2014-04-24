@@ -35,6 +35,13 @@ Fetch all MOD09GA hdfs for tile h08v05 between (and including) Feb. 1, 2007 to D
     $> python mod09ga_urls.py h08v05 -s 20070201 -e 20091216 > h08v05-urls.txt
     $> wget -i h08v05-urls.txt
 
+Use Day of Year (DOY) and Year Ranges to return seasonal products for a range of years.
+Fetch all MOD09GAs for tile h16v00 from 2010 to 2012 and only DOYs 150 to 300.
+
+    $> python mod09ga_urls.py h16v00 -y 2010-2012 -d 150-300
+    $> Use previous examples for how to download the results
+
+
 ### More Info About ECHO
 
 API Docs:  https://api.echo.nasa.gov/catalog-rest/catalog-docs/
