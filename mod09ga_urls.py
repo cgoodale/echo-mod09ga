@@ -54,6 +54,9 @@ parser.add_argument('tile', metavar='tile', type=str, help='TileID to fetch, for
                     i.e. h09v05')
 parser.add_argument('-s', dest='start_date', help='Start Date in format YYYYMMDD')
 parser.add_argument('-e', dest='end_date', help='End Date in format YYYYMMDD')
+parser.add_argument('-y', dest='year_range', help='Range of Years hyphen separated, i.e. 2000-2005')
+parser.add_argument('-d', dest='doy_range', help='Range of DaysOfYear hyphen separated, i.e. 150-300')
+
 
 
 def build_query_string(tile_id, start=None, end=None, query=query_string):
@@ -72,29 +75,17 @@ def date_range_filter(hdf_urls, start, end):
         
         if start == None:
             end = datetime.datetime.strptime(end, "%Y%m%d")
-            for url in hdf_urls:
-                granule_datetime = granule_date(url)
-                if granule_datetime <= end:
-                    filtered_urls.append(url)
-                else:
-                    pass
+            filtered_urls += filter(lambda url: granule_date(url) <= end, hdf_urls)
+
         elif end == None:
             start = datetime.datetime.strptime(start, "%Y%m%d")
-            for url in hdf_urls:
-                granule_datetime = granule_date(url)
-                if granule_datetime >= start:
-                    filtered_urls.append(url)
-                else:
-                    pass
+            filtered_urls += filter(lambda url: granule_date(url) >= start, hdf_urls)
+        
         else:
             end = datetime.datetime.strptime(end, "%Y%m%d")
             start = datetime.datetime.strptime(start, "%Y%m%d")
-            for url in hdf_urls:
-                granule_datetime = granule_date(url)
-                if granule_datetime <= end and granule_datetime >= start:
-                    filtered_urls.append(url)
-                else:
-                    pass
+            filtered_urls += filter(lambda url: granule_date(url) >= start and granule_date(url) <=end, hdf_urls)
+    
     return filtered_urls
 
 def generate_all_download_urls(url, page_size=PAGE_SIZE):
@@ -112,7 +103,6 @@ def generate_all_download_urls(url, page_size=PAGE_SIZE):
         if r.status_code != 200:
             print('Unable to fetch %s\n Return status code: %s' % (paged_url, r.status_code))
             page_count += 1
-            pass
         else:
             hdfs = parse_hdf_paths(r)
             all_urls += hdfs
@@ -146,8 +136,6 @@ def parse_hdf_paths(request):
         for link in links:
             if link['href'].endswith('.hdf'):
                 hdfs.append(link['href'])
-            else:
-                pass
 
     return hdfs
 
@@ -165,9 +153,47 @@ def set_vertical_tile(query, value):
     new_query = '&'.join([query, att_name, att_type, att_value])
     return new_query
 
+
+def check_range_args(args):
+    """Checks to see if the year_range AND doy_range have been specified"""
+    if args.year_range and args.doy_range:
+        return True
+    else:
+        return False
+
+def parse_hyphened_range(hyphened_range):
+    """ Returns the min and max int values of a given string"""
+    try:
+        start, end = hyphened_range.split('-')
+    except ValueError:
+        # This handles when no hyphen is used for a single value
+        start = end = hyphened_range.split('-')[0]
+    return [int(start), int(end)]
+
+def give_url_dates(urls):
+    """Take url list and yield tuples of format:
+    (url, year, doy)
+    """
+    for url in urls:
+        dt = granule_date(url)
+        year = int(dt.strftime('%Y'))
+        doy = int(dt.strftime('%j'))
+        yield url, year, doy
+
+def doy_and_year_filter(hdf_urls, min_max_doys, min_max_years):
+    """Use to filter out URLS that don't fall within the given ranges"""
+    min_d, max_d = min_max_doys
+    min_y, max_y = min_max_years
+    url_date_gen = give_url_dates(hdf_urls)
+    filtered_urls = [ x[0] for x in url_date_gen if min_y <= x[1] <= max_y 
+                                                and min_d <= x[2] <= max_d ]
+    return filtered_urls
+
+
 if __name__ == "__main__":
     
     args = parser.parse_args()
+    use_doy_and_year_ranges = check_range_args(args)
     r = re.compile('h\d{2}v\d{2}')
     if r.match(args.tile) is not None:
         query_params = build_query_string(args.tile)
@@ -177,7 +203,12 @@ if __name__ == "__main__":
         print "%s does not match the h##v## tileID format" % args.tile
         sys.exit()
 
-    hdf_urls = date_range_filter(hdf_urls, start=args.start_date, end=args.end_date)
+    if use_doy_and_year_ranges:
+        min_max_doys = parse_hyphened_range(args.doy_range)
+        min_max_years = parse_hyphened_range(args.year_range)
+        hdf_urls = doy_and_year_filter(hdf_urls, min_max_doys, min_max_years)
+    else:
+        hdf_urls = date_range_filter(hdf_urls, args.start_date, args.end_date)
 
     for url in hdf_urls:
         print url
