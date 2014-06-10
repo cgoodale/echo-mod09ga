@@ -59,8 +59,8 @@ parser.add_argument('-d', dest='doy_range', help='Range of DaysOfYear hyphen sep
 
 
 
-def build_query_string(tile_id, start=None, end=None, query=QUERY_STRING):
-    # tile_id should be h##v## and we need to parse the ##'s for each
+def build_query_string(tile_id, query=QUERY_STRING):
+    """ Return a query string to search for the given tile_id """
     vert_tile = tile_id.split('v')[1]
     horiz_tile = tile_id.split('h')[1].split('v')[0]
     query = set_horizontal_tile(query, horiz_tile)
@@ -110,15 +110,15 @@ def generate_all_download_urls(url, page_size=PAGE_SIZE):
     while page_count:
         page_num_param = 'page_num=%s' % page_count
         paged_url = '&'.join([url, page_param, page_num_param])
-        r = requests.get(paged_url)
-        if r.status_code != 200:
-            print('Unable to fetch %s\n Return status code: %s' % (paged_url, r.status_code))
+        request = requests.get(paged_url)
+        if request.status_code != 200:
+            print('Unable to fetch %s\n Return status code: %s' % (paged_url, request.status_code))
             page_count += 1
         else:
-            hdfs = parse_hdf_paths(r)
+            hdfs = parse_hdf_paths(request)
             all_urls += hdfs
             # If we ar not at the end, increase page count for next page
-            if r.headers['echo-cursor-at-end'] == 'false':
+            if request.headers['echo-cursor-at-end'] == 'false':
                 page_count += 1
             else:
                 page_count = False
@@ -139,6 +139,8 @@ def granule_date(url):
     return granule_date
 
 def parse_hdf_paths(request):
+    """Parse out the URL's to hdf files from the request object
+    and return a list of URL's"""
     hdfs = []
     json = request.json()
     entries = json['feed']['entry']
@@ -151,6 +153,7 @@ def parse_hdf_paths(request):
     return hdfs
 
 def set_horizontal_tile(query, value):
+    """Update the query with a properly formed HORIZONTALTILENUMBER value"""
     att_value = 'attribute[][value]=%s' % value
     att_name = 'attribute[][name]=HORIZONTALTILENUMBER'
     att_type = 'attribute[][type]=int'
@@ -158,6 +161,7 @@ def set_horizontal_tile(query, value):
     return new_query
 
 def set_vertical_tile(query, value):
+    """Update the query with a properly formed VERTICALTILENUMBER value"""
     att_value = 'attribute[][value]=%s' % value
     att_name = 'attribute[][name]=VERTICALTILENUMBER'
     att_type = 'attribute[][type]=int'
@@ -205,11 +209,11 @@ if __name__ == "__main__":
 
     ARGS = parser.parse_args()
     use_doy_and_year_ranges = check_range_args(ARGS)
-    r = re.compile('h\d{2}v\d{2}')
-    if r.match(ARGS.tile) is not None:
-        query_params = build_query_string(ARGS.tile)
-        initial_URL = "".join([ECHO_GRANULE_BASE_URL, query_params])
-        hdf_urls = generate_all_download_urls(initial_URL)
+    TILE_PATTERN = re.compile(r'h\d{2}v\d{2}')
+    if TILE_PATTERN.match(ARGS.tile) is not None:
+        QUERY_PARAMS = build_query_string(ARGS.tile)
+        INITIAL_URL = "".join([ECHO_GRANULE_BASE_URL, QUERY_PARAMS])
+        hdfs = generate_all_download_urls(INITIAL_URL)
     else:
         print "%s does not match the h##v## tileID format" % ARGS.tile
         sys.exit()
@@ -217,9 +221,9 @@ if __name__ == "__main__":
     if use_doy_and_year_ranges:
         doy_range = parse_hyphened_range(ARGS.doy_range)
         year_range = parse_hyphened_range(ARGS.year_range)
-        hdf_urls = doy_and_year_filter(hdf_urls, doy_range, year_range)
+        hdf_urls = doy_and_year_filter(hdfs, doy_range, year_range)
     else:
-        hdf_urls = date_range_filter(hdf_urls, ARGS.start_date, ARGS.end_date)
+        hdf_urls = date_range_filter(hdfs, ARGS.start_date, ARGS.end_date)
 
-    for url in hdf_urls:
-        print url
+    for hdf_url in hdf_urls:
+        print hdf_url
