@@ -36,7 +36,7 @@ ECHO_GRANULE_BASE_URL = 'https://api.echo.nasa.gov/catalog-rest/echo_catalog/gra
 PAGE_SIZE = 2000
 # Due to the odd way that the API works we cannot use a Python dictionary to set up the
 #  URL params easily. Instead we will be creating a really long string.
-query_string = 'dataset_id=MODIS/Terra Surface Reflectance Daily L2G Global 1km and 500m SIN Grid V005'
+QUERY_STRING = 'dataset_id=MODIS/Terra Surface Reflectance Daily L2G Global 1km and 500m SIN Grid V005'
 
 # Python standard Library Imports
 import argparse
@@ -59,8 +59,8 @@ parser.add_argument('-d', dest='doy_range', help='Range of DaysOfYear hyphen sep
 
 
 
-def build_query_string(tile_id, start=None, end=None, query=query_string):
-    # tile_id should be h##v## and we need to parse the ##'s for each 
+def build_query_string(tile_id, start=None, end=None, query=QUERY_STRING):
+    # tile_id should be h##v## and we need to parse the ##'s for each
     vert_tile = tile_id.split('v')[1]
     horiz_tile = tile_id.split('h')[1].split('v')[0]
     query = set_horizontal_tile(query, horiz_tile)
@@ -68,11 +68,22 @@ def build_query_string(tile_id, start=None, end=None, query=query_string):
     return query
 
 def date_range_filter(hdf_urls, start, end):
+    """Filter a list of URLs based on start and end dates.
+
+    Input::
+        hdf_urls <list> URLs to MOD09GA tiles for download
+        start <datetime> Filter urls on or after this date
+        end <datetime> Filter urls on or before this date
+
+    Output::
+        filtered_urls <list> URLs that fall between the start and end
+            parameters
+    """
     if start == None and end == None:
         return hdf_urls
     else:
         filtered_urls = []
-        
+
         if start == None:
             end = datetime.datetime.strptime(end, "%Y%m%d")
             filtered_urls += filter(lambda url: granule_date(url) <= end, hdf_urls)
@@ -80,12 +91,12 @@ def date_range_filter(hdf_urls, start, end):
         elif end == None:
             start = datetime.datetime.strptime(start, "%Y%m%d")
             filtered_urls += filter(lambda url: granule_date(url) >= start, hdf_urls)
-        
+
         else:
             end = datetime.datetime.strptime(end, "%Y%m%d")
             start = datetime.datetime.strptime(start, "%Y%m%d")
-            filtered_urls += filter(lambda url: granule_date(url) >= start and granule_date(url) <=end, hdf_urls)
-    
+            filtered_urls += filter(lambda url: granule_date(url) >= start and granule_date(url) <= end, hdf_urls)
+
     return filtered_urls
 
 def generate_all_download_urls(url, page_size=PAGE_SIZE):
@@ -168,7 +179,7 @@ def parse_hyphened_range(hyphened_range):
     except ValueError:
         # This handles when no hyphen is used for a single value
         start = end = hyphened_range.split('-')[0]
-    return [int(start), int(end)]
+    return (int(start), int(end))
 
 def give_url_dates(urls):
     """Take url list and yield tuples of format:
@@ -185,30 +196,30 @@ def doy_and_year_filter(hdf_urls, min_max_doys, min_max_years):
     min_d, max_d = min_max_doys
     min_y, max_y = min_max_years
     url_date_gen = give_url_dates(hdf_urls)
-    filtered_urls = [ x[0] for x in url_date_gen if min_y <= x[1] <= max_y 
-                                                and min_d <= x[2] <= max_d ]
+    filtered_urls = [x[0] for x in url_date_gen if min_y <= x[1] <= max_y and min_d <= x[2] <= max_d]
+
     return filtered_urls
 
 
 if __name__ == "__main__":
-    
-    args = parser.parse_args()
-    use_doy_and_year_ranges = check_range_args(args)
+
+    ARGS = parser.parse_args()
+    use_doy_and_year_ranges = check_range_args(ARGS)
     r = re.compile('h\d{2}v\d{2}')
-    if r.match(args.tile) is not None:
-        query_params = build_query_string(args.tile)
+    if r.match(ARGS.tile) is not None:
+        query_params = build_query_string(ARGS.tile)
         initial_URL = "".join([ECHO_GRANULE_BASE_URL, query_params])
         hdf_urls = generate_all_download_urls(initial_URL)
     else:
-        print "%s does not match the h##v## tileID format" % args.tile
+        print "%s does not match the h##v## tileID format" % ARGS.tile
         sys.exit()
 
     if use_doy_and_year_ranges:
-        min_max_doys = parse_hyphened_range(args.doy_range)
-        min_max_years = parse_hyphened_range(args.year_range)
-        hdf_urls = doy_and_year_filter(hdf_urls, min_max_doys, min_max_years)
+        doy_range = parse_hyphened_range(ARGS.doy_range)
+        year_range = parse_hyphened_range(ARGS.year_range)
+        hdf_urls = doy_and_year_filter(hdf_urls, doy_range, year_range)
     else:
-        hdf_urls = date_range_filter(hdf_urls, args.start_date, args.end_date)
+        hdf_urls = date_range_filter(hdf_urls, ARGS.start_date, ARGS.end_date)
 
     for url in hdf_urls:
         print url
