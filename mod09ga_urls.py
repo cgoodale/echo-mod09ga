@@ -215,7 +215,7 @@ if __name__ == "__main__":
         INITIAL_URL = "".join([ECHO_GRANULE_BASE_URL, QUERY_PARAMS])
         hdfs = generate_all_download_urls(INITIAL_URL)
     else:
-        print "%s does not match the h##v## tileID format" % ARGS.tile
+        print("%s does not match the h##v## tileID format" % ARGS.tile)
         sys.exit()
 
     if use_doy_and_year_ranges:
@@ -226,4 +226,4 @@ if __name__ == "__main__":
         hdf_urls = date_range_filter(hdfs, ARGS.start_date, ARGS.end_date)
 
     for hdf_url in hdf_urls:
-        print hdf_url
+        print(hdf_url)
